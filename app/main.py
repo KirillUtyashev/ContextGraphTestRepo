@@ -49,6 +49,18 @@ class RestaurantHandler(BaseHTTPRequestHandler):
                 )
                 return
 
+            if path == "/restaurants/featured":
+                limit = self._read_int(query, "limit") or 3
+                featured = restaurant_service.get_featured_restaurants(limit=limit)
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "featured": featured,
+                        "count": len(featured),
+                    },
+                )
+                return
+
             if len(parts) == 2 and parts[0] == "restaurants":
                 self._send_json(HTTPStatus.OK, restaurant_service.get_restaurant(parts[1]))
                 return
@@ -144,6 +156,17 @@ class RestaurantHandler(BaseHTTPRequestHandler):
             return float(value)
         except ValueError as exc:
             raise ValueError(f"Query parameter '{key}' must be a number.") from exc
+
+    @staticmethod
+    def _read_int(query: dict[str, list[str]], key: str) -> int | None:
+        value = RestaurantHandler._read_query_value(query, key)
+        if value is None:
+            return None
+
+        try:
+            return int(value)
+        except ValueError as exc:
+            raise ValueError(f"Query parameter '{key}' must be an integer.") from exc
 
 
 def run() -> None:

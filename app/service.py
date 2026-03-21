@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass, field
 from threading import Lock
 from typing import Any
 
+from app.recommendations import rank_featured_restaurants
 from app.utils import make_id
 
 
@@ -58,11 +59,11 @@ class RestaurantService:
                 raise ValueError(f"Restaurant '{restaurant.id}' already exists.")
             self._restaurants[restaurant.id] = restaurant
 
-        return self.serialize_restaurant(restaurant)
+        return self.build_restaurant_payload(restaurant)
 
     def list_restaurants(self) -> list[dict[str, Any]]:
         with self._lock:
-            return [self.serialize_restaurant(restaurant) for restaurant in self._restaurants.values()]
+            return [self.build_restaurant_payload(restaurant) for restaurant in self._restaurants.values()]
 
     def search_restaurants(
         self,
@@ -115,7 +116,14 @@ class RestaurantService:
             restaurant = self._restaurants.get(restaurant_id)
             if restaurant is None:
                 raise ValueError(f"Restaurant '{restaurant_id}' was not found.")
-            return self.serialize_restaurant(restaurant)
+            return self.build_restaurant_payload(restaurant)
+
+    def get_featured_restaurants(self, limit: int = 3) -> list[dict[str, Any]]:
+        if limit < 1:
+            raise ValueError("limit must be at least 1.")
+
+        restaurants = self.list_restaurants()
+        return rank_featured_restaurants(restaurants, limit=limit)
 
     def add_review(
         self,
@@ -151,9 +159,12 @@ class RestaurantService:
         self.reset()
         noodle_shop = self.create_restaurant("Moon Noodle", "Japanese", "Toronto", "$$")
         diner = self.create_restaurant("Parkside Diner", "Comfort Food", "Ottawa", "$")
+        bistro = self.create_restaurant("Cedar Bistro", "French", "Montreal", "$$$")
         self.add_review(noodle_shop["id"], "Avery", 5, "Great broth and quick service.")
         self.add_review(noodle_shop["id"], "Jordan", 4, "Solid ramen for a casual dinner.")
         self.add_review(diner["id"], "Sam", 4, "Excellent brunch and friendly staff.")
+        self.add_review(bistro["id"], "Riley", 5, "Beautiful atmosphere and standout desserts.")
+        self.add_review(bistro["id"], "Morgan", 5, "Perfect date-night spot.")
         return {
             "restaurants": self.list_restaurants(),
             "total_restaurants": len(self._restaurants),
@@ -163,7 +174,7 @@ class RestaurantService:
     def serialize_review(review: Review) -> dict[str, Any]:
         return asdict(review)
 
-    def serialize_restaurant(self, restaurant: Restaurant) -> dict[str, Any]:
+    def build_restaurant_payload(self, restaurant: Restaurant) -> dict[str, Any]:
         review_count = len(restaurant.reviews)
         average_rating = round(
             sum(review.rating for review in restaurant.reviews) / review_count,
