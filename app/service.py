@@ -64,6 +64,52 @@ class RestaurantService:
         with self._lock:
             return [self.serialize_restaurant(restaurant) for restaurant in self._restaurants.values()]
 
+    def search_restaurants(
+        self,
+        cuisine: str | None = None,
+        location: str | None = None,
+        min_rating: float | None = None,
+        sort: str = "name",
+    ) -> list[dict[str, Any]]:
+        restaurants = self.list_restaurants()
+
+        if cuisine:
+            normalized_cuisine = cuisine.strip().lower()
+            restaurants = [
+                restaurant for restaurant in restaurants
+                if restaurant["cuisine"].lower() == normalized_cuisine
+            ]
+
+        if location:
+            normalized_location = location.strip().lower()
+            restaurants = [
+                restaurant for restaurant in restaurants
+                if restaurant["location"].lower() == normalized_location
+            ]
+
+        if min_rating is not None:
+            restaurants = [
+                restaurant for restaurant in restaurants
+                if restaurant["average_rating"] is not None and restaurant["average_rating"] >= min_rating
+            ]
+
+        if sort == "rating":
+            restaurants.sort(
+                key=lambda restaurant: (
+                    restaurant["average_rating"] is None,
+                    -(restaurant["average_rating"] or 0),
+                    restaurant["name"].lower(),
+                )
+            )
+        elif sort == "reviews":
+            restaurants.sort(
+                key=lambda restaurant: (-restaurant["review_count"], restaurant["name"].lower())
+            )
+        else:
+            restaurants.sort(key=lambda restaurant: restaurant["name"].lower())
+
+        return restaurants
+
     def get_restaurant(self, restaurant_id: str) -> dict[str, Any]:
         with self._lock:
             restaurant = self._restaurants.get(restaurant_id)

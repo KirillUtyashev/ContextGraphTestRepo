@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from app.service import restaurant_service
 from app.utils import json_bytes, read_json
@@ -16,8 +16,10 @@ class RestaurantHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self) -> None:
-        path = urlparse(self.path).path
+        parsed_url = urlparse(self.path)
+        path = parsed_url.path
         parts = self._path_parts(path)
+        query = parse_qs(parsed_url.query)
 
         try:
             if path == "/health":
@@ -25,7 +27,26 @@ class RestaurantHandler(BaseHTTPRequestHandler):
                 return
 
             if path == "/restaurants":
-                self._send_json(HTTPStatus.OK, {"restaurants": restaurant_service.list_restaurants()})
+                min_rating = self._read_float(query, "min_rating")
+                restaurants = restaurant_service.search_restaurants(
+                    cuisine=self._read_query_value(query, "cuisine"),
+                    location=self._read_query_value(query, "location"),
+                    min_rating=min_rating,
+                    sort=self._read_query_value(query, "sort") or "name",
+                )
+                self._send_json(
+                    HTTPStatus.OK,
+                    {
+                        "restaurants": restaurants,
+                        "filters": {
+                            "cuisine": self._read_query_value(query, "cuisine"),
+                            "location": self._read_query_value(query, "location"),
+                            "min_rating": min_rating,
+                            "sort": self._read_query_value(query, "sort") or "name",
+                        },
+                        "count": len(restaurants),
+                    },
+                )
                 return
 
             if len(parts) == 2 and parts[0] == "restaurants":
@@ -105,6 +126,24 @@ class RestaurantHandler(BaseHTTPRequestHandler):
     @staticmethod
     def _path_parts(path: str) -> list[str]:
         return [part for part in path.strip("/").split("/") if part]
+
+    @staticmethod
+    def _read_query_value(query: dict[str, list[str]], key: str) -> str | None:
+        values = query.get(key)
+        if not values:
+            return None
+        return values[0].strip() or None
+
+    @staticmethod
+    def _read_float(query: dict[str, list[str]], key: str) -> float | None:
+        value = RestaurantHandler._read_query_value(query, key)
+        if value is None:
+            return None
+
+        try:
+            return float(value)
+        except ValueError as exc:
+            raise ValueError(f"Query parameter '{key}' must be a number.") from exc
 
 
 def run() -> None:
