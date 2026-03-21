@@ -1,4 +1,139 @@
-from utils import double
+from __future__ import annotations
 
-def process_data(data):
-    return [double(x) for x in data]
+from dataclasses import asdict, dataclass, field
+from threading import Lock
+from typing import Any
+
+from app.utils import make_id
+
+
+@dataclass
+class Review:
+    id: str
+    author: str
+    rating: int
+    comment: str
+
+
+@dataclass
+class Restaurant:
+    id: str
+    name: str
+    cuisine: str
+    location: str
+    price_range: str
+    reviews: list[Review] = field(default_factory=list)
+
+
+class RestaurantService:
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self.reset()
+
+    def reset(self) -> None:
+        with self._lock:
+            self._restaurants: dict[str, Restaurant] = {}
+
+    def create_restaurant(
+        self,
+        name: str,
+        cuisine: str,
+        location: str,
+        price_range: str,
+        restaurant_id: str | None = None,
+    ) -> dict[str, Any]:
+        if not all([name, cuisine, location, price_range]):
+            raise ValueError("Name, cuisine, location, and price_range are required.")
+
+        restaurant = Restaurant(
+            id=restaurant_id or make_id("restaurant"),
+            name=name,
+            cuisine=cuisine,
+            location=location,
+            price_range=price_range,
+        )
+
+        with self._lock:
+            if restaurant.id in self._restaurants:
+                raise ValueError(f"Restaurant '{restaurant.id}' already exists.")
+            self._restaurants[restaurant.id] = restaurant
+
+        return self.serialize_restaurant(restaurant)
+
+    def list_restaurants(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [self.serialize_restaurant(restaurant) for restaurant in self._restaurants.values()]
+
+    def get_restaurant(self, restaurant_id: str) -> dict[str, Any]:
+        with self._lock:
+            restaurant = self._restaurants.get(restaurant_id)
+            if restaurant is None:
+                raise ValueError(f"Restaurant '{restaurant_id}' was not found.")
+            return self.serialize_restaurant(restaurant)
+
+    def add_review(
+        self,
+        restaurant_id: str,
+        author: str,
+        rating: int,
+        comment: str,
+        review_id: str | None = None,
+    ) -> dict[str, Any]:
+        if not restaurant_id:
+            raise ValueError("restaurant_id is required.")
+        if not author or not comment:
+            raise ValueError("Author and comment are required.")
+        if rating < 1 or rating > 5:
+            raise ValueError("Rating must be between 1 and 5.")
+
+        with self._lock:
+            restaurant = self._restaurants.get(restaurant_id)
+            if restaurant is None:
+                raise ValueError(f"Restaurant '{restaurant_id}' was not found.")
+
+            review = Review(
+                id=review_id or make_id("review"),
+                author=author,
+                rating=rating,
+                comment=comment,
+            )
+            restaurant.reviews.append(review)
+
+        return self.serialize_review(review)
+
+    def seed_demo_data(self) -> dict[str, Any]:
+        self.reset()
+        noodle_shop = self.create_restaurant("Moon Noodle", "Japanese", "Toronto", "$$")
+        diner = self.create_restaurant("Parkside Diner", "Comfort Food", "Ottawa", "$")
+        self.add_review(noodle_shop["id"], "Avery", 5, "Great broth and quick service.")
+        self.add_review(noodle_shop["id"], "Jordan", 4, "Solid ramen for a casual dinner.")
+        self.add_review(diner["id"], "Sam", 4, "Excellent brunch and friendly staff.")
+        return {
+            "restaurants": self.list_restaurants(),
+            "total_restaurants": len(self._restaurants),
+        }
+
+    @staticmethod
+    def serialize_review(review: Review) -> dict[str, Any]:
+        return asdict(review)
+
+    def serialize_restaurant(self, restaurant: Restaurant) -> dict[str, Any]:
+        review_count = len(restaurant.reviews)
+        average_rating = round(
+            sum(review.rating for review in restaurant.reviews) / review_count,
+            1,
+        ) if review_count else None
+
+        return {
+            "id": restaurant.id,
+            "name": restaurant.name,
+            "cuisine": restaurant.cuisine,
+            "location": restaurant.location,
+            "price_range": restaurant.price_range,
+            "average_rating": average_rating,
+            "review_count": review_count,
+            "reviews": [self.serialize_review(review) for review in restaurant.reviews],
+        }
+
+
+restaurant_service = RestaurantService()
