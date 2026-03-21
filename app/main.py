@@ -1,12 +1,23 @@
 from __future__ import annotations
 
+import json
 import os
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from app.service import restaurant_service
-from app.utils import json_bytes, read_json
+
+
+def encode_json(payload: object) -> bytes:
+    return json.dumps(payload).encode("utf-8")
+
+
+def parse_json_body(body: bytes) -> dict:
+    if not body:
+        return {}
+
+    return json.loads(body.decode("utf-8"))
 
 
 class RestaurantHandler(BaseHTTPRequestHandler):
@@ -119,10 +130,10 @@ class RestaurantHandler(BaseHTTPRequestHandler):
     def _read_request_json(self) -> dict:
         content_length = int(self.headers.get("Content-Length", "0"))
         body = self.rfile.read(content_length)
-        return read_json(body)
+        return parse_json_body(body)
 
     def _send_json(self, status: HTTPStatus, payload: dict) -> None:
-        response = json_bytes(payload)
+        response = encode_json(payload)
         self.send_response(status)
         self._send_common_headers()
         self.send_header("Content-Type", "application/json")

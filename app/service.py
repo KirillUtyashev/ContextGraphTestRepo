@@ -3,9 +3,13 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from threading import Lock
 from typing import Any
+import uuid
 
 from app.recommendations import rank_featured_restaurants
-from app.utils import make_id
+
+
+def generate_entity_id(prefix: str) -> str:
+    return f"{prefix}_{uuid.uuid4().hex[:8]}"
 
 
 @dataclass
@@ -47,7 +51,7 @@ class RestaurantService:
             raise ValueError("Name, cuisine, location, and price_range are required.")
 
         restaurant = Restaurant(
-            id=restaurant_id or make_id("restaurant"),
+            id=restaurant_id or generate_entity_id("restaurant"),
             name=name,
             cuisine=cuisine,
             location=location,
@@ -146,7 +150,7 @@ class RestaurantService:
                 raise ValueError(f"Restaurant '{restaurant_id}' was not found.")
 
             review = Review(
-                id=review_id or make_id("review"),
+                id=review_id or generate_entity_id("review"),
                 author=author,
                 rating=rating,
                 comment=comment,
