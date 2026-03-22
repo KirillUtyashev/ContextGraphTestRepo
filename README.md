@@ -74,6 +74,7 @@ requirements.txt
 `GET /restaurants/featured` accepts:
 
 - `limit=3`
+- `price_range=$$`
 
 ## Example Usage
 
@@ -98,7 +99,7 @@ curl "http://127.0.0.1:8000/restaurants?location=Toronto&min_rating=4&sort=ratin
 ### Get featured restaurants
 
 ```bash
-curl "http://127.0.0.1:8000/restaurants/featured?limit=2"
+curl "http://127.0.0.1:8000/restaurants/featured?limit=2&price_range=$$"
 ```
 
 ### Create a restaurant

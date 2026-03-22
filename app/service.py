@@ -122,11 +122,21 @@ class RestaurantService:
                 raise ValueError(f"Restaurant '{restaurant_id}' was not found.")
             return self.build_restaurant_payload(restaurant)
 
-    def get_featured_restaurants(self, limit: int = 3) -> list[dict[str, Any]]:
+    def get_featured_restaurants(
+        self,
+        limit: int = 3,
+        price_range: str | None = None,
+    ) -> list[dict[str, Any]]:
         if limit < 1:
             raise ValueError("limit must be at least 1.")
 
         restaurants = self.list_restaurants()
+        if price_range:
+            restaurants = [
+                restaurant
+                for restaurant in restaurants
+                if restaurant["price_range"] == price_range
+            ]
         return rank_featured_restaurants(restaurants, limit=limit)
 
     def add_review(

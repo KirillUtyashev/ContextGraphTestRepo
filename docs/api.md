@@ -77,11 +77,12 @@ Returns featured restaurants ranked by rating, review count, and name.
 ### Query Parameters
 
 - `limit`: maximum number of featured restaurants to return
+- `price_range`: optional exact price range match such as `$`, `$$`, or `$$$`
 
 ### Example
 
 ```bash
-curl "http://127.0.0.1:8000/restaurants/featured?limit=2"
+curl "http://127.0.0.1:8000/restaurants/featured?limit=2&price_range=$$"
 ```
 
 ### Response
@@ -108,6 +109,10 @@ curl "http://127.0.0.1:8000/restaurants/featured?limit=2"
       "feature_reason": "Top rated by the community."
     }
   ],
+  "filters": {
+    "price_range": "$$",
+    "limit": 2
+  },
   "count": 1
 }
 ```
