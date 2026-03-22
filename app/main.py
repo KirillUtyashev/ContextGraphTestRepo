@@ -62,11 +62,19 @@ class RestaurantHandler(BaseHTTPRequestHandler):
 
             if path == "/restaurants/featured":
                 limit = self._read_int(query, "limit") or 3
-                featured = restaurant_service.get_featured_restaurants(limit=limit)
+                price_range = self._read_query_value(query, "price_range")
+                featured = restaurant_service.get_featured_restaurants(
+                    limit=limit,
+                    price_range=price_range,
+                )
                 self._send_json(
                     HTTPStatus.OK,
                     {
                         "featured": featured,
+                        "filters": {
+                            "price_range": price_range,
+                            "limit": limit,
+                        },
                         "count": len(featured),
                     },
                 )
