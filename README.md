@@ -130,3 +130,7 @@ curl -X POST http://127.0.0.1:8000/restaurants/restaurant_12345678/reviews \
 - [Overview](docs/overview.md)
 - [API Reference](docs/api.md)
 - [Architecture Notes](docs/architecture.md)
+
+## Agent Verification
+
+This line was added by the coding agent to demonstrate repository edits.
